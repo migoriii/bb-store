@@ -630,32 +630,6 @@ export default async function AdminPage() {
     </p>
   )}
 </div>
-            <span className="kicker">Inventory</span>
-
-            <h2 style={{ marginTop: 10 }}>
-              Stock overview.
-            </h2>
-
-            <div className="cart-list">
-              {products.map((product) => (
-                <div
-                  className="cart-row"
-                  key={product.id}
-                >
-                  <div>
-                    <strong>{product.name}</strong>
-                    <div className="muted">
-                      {product.category}
-                    </div>
-                  </div>
-
-                  <span className="status in-stock">
-                    {product.stock_quantity ?? 'No limit'} in stock
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <div
             id="customers"
