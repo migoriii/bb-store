@@ -21,7 +21,15 @@ async function getAdminClient() {
   return profile?.role === 'admin' ? supabase : null
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    product_added?: string
+    product_error?: string
+  }>
+}) {
+  const params = await searchParams
   let accessState: 'demo' | 'admin' | 'blocked' = 'demo'
 
   if (isSupabaseConfigured()) {
