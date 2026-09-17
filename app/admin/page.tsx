@@ -43,6 +43,22 @@ const adminLabelStyle = {
   gap: 7,
 }
 
+const allowedImageTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]
+
+const maxImageSize = 5 * 1024 * 1024
+
+const imageExtensionMap: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+
 async function getAdminClient() {
   const supabase = await createClient()
 
@@ -62,30 +78,115 @@ async function getAdminClient() {
   return profile?.role === 'admin' ? supabase : null
 }
 
+async function uploadProductImage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  file: FormDataEntryValue | null,
+) {
+  if (!(file instanceof File) || file.size === 0) {
+    return {
+      imageUrl: null as string | null,
+      imagePath: null as string | null,
+      error: null as string | null,
+    }
+  }
+
+  if (!allowedImageTypes.includes(file.type)) {
+    return {
+      imageUrl: null,
+      imagePath: null,
+      error:
+        'Please upload a JPG, PNG, WEBP, or GIF image.',
+    }
+  }
+
+  if (file.size > maxImageSize) {
+    return {
+      imageUrl: null,
+      imagePath: null,
+      error:
+        'Product images must be 5 MB or smaller.',
+    }
+  }
+
+  const extension =
+    imageExtensionMap[file.type]
+
+  if (!extension) {
+    return {
+      imageUrl: null,
+      imagePath: null,
+      error: 'Unsupported image type.',
+    }
+  }
+
+  const filePath =
+    `products/${crypto.randomUUID()}.${extension}`
+
+  const { error: uploadError } =
+    await supabase.storage
+      .from('product-images')
+      .upload(
+        filePath,
+        file,
+        {
+          contentType: file.type,
+          upsert: false,
+        },
+      )
+
+  if (uploadError) {
+    return {
+      imageUrl: null,
+      imagePath: null,
+      error: uploadError.message,
+    }
+  }
+
+  const {
+    data: publicUrlData,
+  } = supabase.storage
+    .from('product-images')
+    .getPublicUrl(filePath)
+
+  return {
+    imageUrl: publicUrlData.publicUrl,
+    imagePath: filePath,
+    error: null,
+  }
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
   searchParams: Promise<{
     product_added?: string
+    product_updated?: string
     product_error?: string
   }>
 }) {
   const params = await searchParams
 
-  let accessState: 'demo' | 'admin' | 'blocked' = 'demo'
+  let accessState:
+    | 'demo'
+    | 'admin'
+    | 'blocked' = 'demo'
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient()
 
-    const { data } = await supabase.auth.getClaims()
-    const userId = data?.claims?.sub as string | undefined
+    const { data } =
+      await supabase.auth.getClaims()
+
+    const userId =
+      data?.claims?.sub as string | undefined
 
     if (userId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle()
+      const { data: profile } =
+        await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle()
 
       accessState =
         profile?.role === 'admin'
@@ -100,11 +201,14 @@ export default async function AdminPage({
     return (
       <section className="section">
         <div className="page-card narrow">
-          <span className="kicker">Admin area</span>
+          <span className="kicker">
+            Admin area
+          </span>
 
           <h1
             style={{
-              fontSize: 'clamp(42px,7vw,64px)',
+              fontSize:
+                'clamp(42px,7vw,64px)',
               marginTop: 12,
             }}
           >
@@ -112,8 +216,9 @@ export default async function AdminPage({
           </h1>
 
           <p className="muted">
-            Only approved BB Store administrators can access
-            this area.
+            Only approved BB Store
+            administrators can access this
+            area.
           </p>
 
           <div className="checkout-actions">
@@ -140,33 +245,38 @@ export default async function AdminPage({
   let orders: Order[] = []
 
   if (accessState === 'admin') {
-    const supabase = await getAdminClient()
+    const supabase =
+      await getAdminClient()
 
     if (supabase) {
-      const productsResult = await supabase
-        .from('products')
-        .select(
-          'id, name, description, category, price, stock_quantity, is_available, image_url',
-        )
-        .order('created_at', {
-          ascending: false,
-        })
+      const productsResult =
+        await supabase
+          .from('products')
+          .select(
+            'id, name, description, category, price, stock_quantity, is_available, image_url',
+          )
+          .order('created_at', {
+            ascending: false,
+          })
 
-      const ordersResult = await supabase
-        .from('orders')
-        .select(
-          'id, order_number, customer_name, fulfillment_method, order_status, total, created_at',
-        )
-        .order('created_at', {
-          ascending: false,
-        })
-        .limit(50)
+      const ordersResult =
+        await supabase
+          .from('orders')
+          .select(
+            'id, order_number, customer_name, fulfillment_method, order_status, total, created_at',
+          )
+          .order('created_at', {
+            ascending: false,
+          })
+          .limit(50)
 
-      products = (productsResult.data ??
-        []) as Product[]
+      products =
+        (productsResult.data ??
+          []) as Product[]
 
-      orders = (ordersResult.data ??
-        []) as Order[]
+      orders =
+        (ordersResult.data ??
+          []) as Order[]
     }
   }
 
@@ -174,27 +284,35 @@ export default async function AdminPage({
 
   const todayOrders = orders.filter(
     (order) =>
-      new Date(order.created_at).toDateString() ===
-      today,
+      new Date(
+        order.created_at,
+      ).toDateString() === today,
   )
 
-  const processingCount = todayOrders.filter(
-    (order) =>
-      order.order_status === 'pending' ||
-      order.order_status === 'processing',
-  ).length
+  const processingCount =
+    todayOrders.filter(
+      (order) =>
+        order.order_status ===
+          'pending' ||
+        order.order_status ===
+          'processing',
+    ).length
 
-  const deliveryCount = todayOrders.filter(
-    (order) =>
-      order.order_status === 'out_for_delivery' ||
-      order.fulfillment_method === 'delivery',
-  ).length
+  const deliveryCount =
+    todayOrders.filter(
+      (order) =>
+        order.order_status ===
+          'out_for_delivery' ||
+        order.fulfillment_method ===
+          'delivery',
+    ).length
 
-  const todaySales = todayOrders.reduce(
-    (sum, order) =>
-      sum + Number(order.total),
-    0,
-  )
+  const todaySales =
+    todayOrders.reduce(
+      (sum, order) =>
+        sum + Number(order.total),
+      0,
+    )
 
   return (
     <section
@@ -259,9 +377,9 @@ export default async function AdminPage({
             </h1>
 
             <p className="muted">
-              Control orders, stock, daily food,
-              payment verification, and delivery
-              from one place.
+              Control orders, stock, daily
+              food, payment verification,
+              and delivery from one place.
             </p>
 
             <div className="stats">
@@ -313,7 +431,9 @@ export default async function AdminPage({
           <div
             id="orders"
             className="page-card"
-            style={{ marginTop: 24 }}
+            style={{
+              marginTop: 24,
+            }}
           >
             <span className="kicker">
               Orders
@@ -325,38 +445,48 @@ export default async function AdminPage({
 
             {orders.length > 0 ? (
               <div className="cart-list">
-                {orders.map((order) => (
-                  <div
-                    className="cart-row"
-                    key={order.id}
-                  >
-                    <div>
-                      <strong>
-                        {order.order_number}
-                      </strong>
+                {orders.map(
+                  (order) => (
+                    <div
+                      className="cart-row"
+                      key={order.id}
+                    >
+                      <div>
+                        <strong>
+                          {
+                            order.order_number
+                          }
+                        </strong>
 
-                      <div className="muted">
-                        {order.customer_name}
-                        {' · '}
-                        {order.fulfillment_method ===
-                        'delivery'
-                          ? 'Delivery'
-                          : 'Pickup'}
+                        <div className="muted">
+                          {
+                            order.customer_name
+                          }
+                          {' · '}
+                          {order.fulfillment_method ===
+                          'delivery'
+                            ? 'Delivery'
+                            : 'Pickup'}
+                        </div>
                       </div>
+
+                      <span className="status in-stock">
+                        {order.order_status.replaceAll(
+                          '_',
+                          ' ',
+                        )}
+                      </span>
+
+                      <strong>
+                        {peso(
+                          Number(
+                            order.total,
+                          ),
+                        )}
+                      </strong>
                     </div>
-
-                    <span className="status in-stock">
-                      {order.order_status
-                        .replaceAll('_', ' ')}
-                    </span>
-
-                    <strong>
-                      {peso(
-                        Number(order.total),
-                      )}
-                    </strong>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             ) : (
               <p className="muted">
@@ -369,7 +499,9 @@ export default async function AdminPage({
           <div
             id="products"
             className="page-card"
-            style={{ marginTop: 24 }}
+            style={{
+              marginTop: 24,
+            }}
           >
             <span className="kicker">
               Products
@@ -380,24 +512,47 @@ export default async function AdminPage({
             </h2>
 
             <p className="muted">
-              Add and manage the everyday products
-              customers can order.
+              Add and manage the everyday
+              products customers can order.
             </p>
 
             {params.product_added && (
               <div
                 style={{
                   marginTop: 16,
-                  padding: '12px 14px',
+                  padding:
+                    '12px 14px',
                   borderRadius: 14,
                   background:
                     'rgba(207,237,221,0.72)',
-                  color: 'var(--success)',
+                  color:
+                    'var(--success)',
                   fontSize: 14,
                   fontWeight: 700,
                 }}
               >
-                Product added successfully.
+                Product added
+                successfully.
+              </div>
+            )}
+
+            {params.product_updated && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding:
+                    '12px 14px',
+                  borderRadius: 14,
+                  background:
+                    'rgba(207,237,221,0.72)',
+                  color:
+                    'var(--success)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                Product updated
+                successfully.
               </div>
             )}
 
@@ -405,14 +560,17 @@ export default async function AdminPage({
               <div
                 style={{
                   marginTop: 16,
-                  padding: '12px 14px',
+                  padding:
+                    '12px 14px',
                   borderRadius: 14,
                   background:
                     'rgba(245,214,215,0.72)',
-                  color: 'var(--danger)',
+                  color:
+                    'var(--danger)',
                   fontSize: 14,
                   fontWeight: 700,
-                  overflowWrap: 'anywhere',
+                  overflowWrap:
+                    'anywhere',
                 }}
               >
                 {params.product_error}
@@ -422,7 +580,10 @@ export default async function AdminPage({
             {/* ADD PRODUCT */}
             <form
               className="admin-product-form"
-              action={async (formData) => {
+              encType="multipart/form-data"
+              action={async (
+                formData,
+              ) => {
                 'use server'
 
                 const supabase =
@@ -435,29 +596,37 @@ export default async function AdminPage({
                 }
 
                 const name = String(
-                  formData.get('name') || '',
+                  formData.get('name') ||
+                    '',
                 ).trim()
 
-                const category = String(
-                  formData.get('category') || '',
-                ).trim()
+                const category =
+                  String(
+                    formData.get(
+                      'category',
+                    ) || '',
+                  ).trim()
 
-                const price = Number(
-                  formData.get('price'),
-                )
+                const price =
+                  Number(
+                    formData.get('price'),
+                  )
 
-                const stockValue = String(
-                  formData.get(
-                    'stock_quantity',
-                  ) || '',
-                ).trim()
+                const stockValue =
+                  String(
+                    formData.get(
+                      'stock_quantity',
+                    ) || '',
+                  ).trim()
 
                 const stock_quantity =
                   stockValue === ''
                     ? null
                     : Math.max(
                         0,
-                        Number(stockValue),
+                        Number(
+                          stockValue,
+                        ),
                       )
 
                 const description =
@@ -475,15 +644,20 @@ export default async function AdminPage({
                 if (
                   !name ||
                   !category ||
-                  !Number.isFinite(price)
+                  !Number.isFinite(
+                    price,
+                  )
                 ) {
                   redirect(
-                    '/admin?product_error=Please%20enter%20a%20valid%20product%20name%2C%20category%2C%20and%20price.#products',
+                    `/admin?product_error=${encodeURIComponent(
+                      'Please enter a valid product name, category, and price.',
+                    )}#products`,
                   )
                 }
 
                 if (
-                  stock_quantity !== null &&
+                  stock_quantity !==
+                    null &&
                   (!Number.isFinite(
                     stock_quantity,
                   ) ||
@@ -492,23 +666,58 @@ export default async function AdminPage({
                     ))
                 ) {
                   redirect(
-                    '/admin?product_error=Stock%20quantity%20must%20be%20a%20whole%20number.#products',
+                    `/admin?product_error=${encodeURIComponent(
+                      'Stock quantity must be a whole number.',
+                    )}#products`,
                   )
                 }
 
-                const { error } =
-                  await supabase
-                    .from('products')
-                    .insert({
-                      name,
-                      category,
-                      price,
-                      stock_quantity,
-                      description,
-                      is_available,
-                    })
+                const imageResult =
+                  await uploadProductImage(
+                    supabase,
+                    formData.get(
+                      'image',
+                    ),
+                  )
+
+                if (
+                  imageResult.error
+                ) {
+                  redirect(
+                    `/admin?product_error=${encodeURIComponent(
+                      imageResult.error,
+                    )}#products`,
+                  )
+                }
+
+                const {
+                  error,
+                } = await supabase
+                  .from('products')
+                  .insert({
+                    name,
+                    category,
+                    price,
+                    stock_quantity,
+                    description,
+                    image_url:
+                      imageResult.imageUrl,
+                    is_available,
+                  })
 
                 if (error) {
+                  if (
+                    imageResult.imagePath
+                  ) {
+                    await supabase.storage
+                      .from(
+                        'product-images',
+                      )
+                      .remove([
+                        imageResult.imagePath,
+                      ])
+                  }
+
                   redirect(
                     `/admin?product_error=${encodeURIComponent(
                       error.message,
@@ -516,8 +725,14 @@ export default async function AdminPage({
                   )
                 }
 
-                revalidatePath('/admin')
-                revalidatePath('/products')
+                revalidatePath(
+                  '/admin',
+                )
+
+                revalidatePath(
+                  '/products',
+                )
+
                 revalidatePath('/')
 
                 redirect(
@@ -535,19 +750,21 @@ export default async function AdminPage({
                   'rgba(255,255,255,0.38)',
               }}
             >
-              <h3 style={{ marginTop: 0 }}>
+              <h3
+                style={{ marginTop: 0 }}
+              >
                 Add a product
               </h3>
 
               <div
                 className="checkout-grid"
-                style={{
-                  gap: 14,
-                }}
+                style={{ gap: 14 }}
               >
 
                 <label
-                  style={adminLabelStyle}
+                  style={
+                    adminLabelStyle
+                  }
                 >
                   <span className="muted">
                     Product name
@@ -558,12 +775,16 @@ export default async function AdminPage({
                     type="text"
                     placeholder="e.g. Eggs"
                     required
-                    style={adminInputStyle}
+                    style={
+                      adminInputStyle
+                    }
                   />
                 </label>
 
                 <label
-                  style={adminLabelStyle}
+                  style={
+                    adminLabelStyle
+                  }
                 >
                   <span className="muted">
                     Category
@@ -573,7 +794,9 @@ export default async function AdminPage({
                     name="category"
                     defaultValue=""
                     required
-                    style={adminInputStyle}
+                    style={
+                      adminInputStyle
+                    }
                   >
                     <option
                       value=""
@@ -601,7 +824,9 @@ export default async function AdminPage({
                 </label>
 
                 <label
-                  style={adminLabelStyle}
+                  style={
+                    adminLabelStyle
+                  }
                 >
                   <span className="muted">
                     Price
@@ -614,12 +839,16 @@ export default async function AdminPage({
                     step="0.01"
                     placeholder="0.00"
                     required
-                    style={adminInputStyle}
+                    style={
+                      adminInputStyle
+                    }
                   />
                 </label>
 
                 <label
-                  style={adminLabelStyle}
+                  style={
+                    adminLabelStyle
+                  }
                 >
                   <span className="muted">
                     Stock quantity
@@ -631,7 +860,9 @@ export default async function AdminPage({
                     min="0"
                     step="1"
                     placeholder="0"
-                    style={adminInputStyle}
+                    style={
+                      adminInputStyle
+                    }
                   />
                 </label>
 
@@ -652,15 +883,45 @@ export default async function AdminPage({
                     placeholder="Optional product description"
                     style={{
                       ...adminInputStyle,
-                      resize: 'vertical',
+                      resize:
+                        'vertical',
                     }}
                   />
                 </label>
 
                 <label
                   style={{
+                    ...adminLabelStyle,
+                    gridColumn:
+                      '1 / -1',
+                  }}
+                >
+                  <span className="muted">
+                    Product photo
+                  </span>
+
+                  <input
+                    name="image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    style={{
+                      ...adminInputStyle,
+                      padding:
+                        '9px 12px',
+                    }}
+                  />
+
+                  <small className="muted">
+                    JPG, PNG, WEBP, or
+                    GIF · Maximum 5 MB
+                  </small>
+                </label>
+
+                <label
+                  style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems:
+                      'center',
                     gap: 10,
                   }}
                 >
@@ -671,7 +932,8 @@ export default async function AdminPage({
                   />
 
                   <span>
-                    Available for customers
+                    Available for
+                    customers
                   </span>
                 </label>
 
@@ -699,6 +961,7 @@ export default async function AdminPage({
                     <form
                       key={product.id}
                       className="admin-product-form"
+                      encType="multipart/form-data"
                       action={async (
                         formData,
                       ) => {
@@ -713,17 +976,19 @@ export default async function AdminPage({
                           )
                         }
 
-                        const id = String(
-                          formData.get(
-                            'id',
-                          ),
-                        )
+                        const id =
+                          String(
+                            formData.get(
+                              'id',
+                            ),
+                          )
 
-                        const name = String(
-                          formData.get(
-                            'name',
-                          ) || '',
-                        ).trim()
+                        const name =
+                          String(
+                            formData.get(
+                              'name',
+                            ) || '',
+                          ).trim()
 
                         const category =
                           String(
@@ -747,7 +1012,8 @@ export default async function AdminPage({
                           ).trim()
 
                         const stock_quantity =
-                          stockValue === ''
+                          stockValue ===
+                          ''
                             ? null
                             : Math.max(
                                 0,
@@ -800,27 +1066,81 @@ export default async function AdminPage({
                           )
                         }
 
-                        const { error } =
-                          await supabase
-                            .from(
-                              'products',
-                            )
-                            .update({
-                              name,
-                              category,
-                              price,
-                              stock_quantity,
-                              description,
-                              is_available,
-                              updated_at:
-                                new Date().toISOString(),
-                            })
-                            .eq(
-                              'id',
-                              id,
+                        const imageFile =
+                          formData.get(
+                            'image',
+                          )
+
+                        let imageUrl =
+                          product.image_url
+
+                        let uploadedImagePath:
+                          | string
+                          | null =
+                          null
+
+                        if (
+                          imageFile instanceof
+                            File &&
+                          imageFile.size > 0
+                        ) {
+                          const imageResult =
+                            await uploadProductImage(
+                              supabase,
+                              imageFile,
                             )
 
+                          if (
+                            imageResult.error
+                          ) {
+                            redirect(
+                              `/admin?product_error=${encodeURIComponent(
+                                imageResult.error,
+                              )}#products`,
+                            )
+                          }
+
+                          imageUrl =
+                            imageResult.imageUrl
+
+                          uploadedImagePath =
+                            imageResult.imagePath
+                        }
+
+                        const {
+                          error,
+                        } = await supabase
+                          .from('products')
+                          .update({
+                            name,
+                            category,
+                            price,
+                            stock_quantity,
+                            description,
+                            image_url:
+                              imageUrl,
+                            is_available,
+                            updated_at:
+                              new Date().toISOString(),
+                          })
+                          .eq(
+                            'id',
+                            id,
+                          )
+
                         if (error) {
+                          if (
+                            uploadedImagePath
+                          ) {
+                            await supabase.storage
+                              .from(
+                                'product-images',
+                              )
+                              .remove([
+                                uploadedImagePath,
+                              ])
+                          }
+
                           redirect(
                             `/admin?product_error=${encodeURIComponent(
                               error.message,
@@ -831,15 +1151,15 @@ export default async function AdminPage({
                         revalidatePath(
                           '/admin',
                         )
+
                         revalidatePath(
                           '/products',
                         )
-                        revalidatePath(
-                          '/',
-                        )
+
+                        revalidatePath('/')
 
                         redirect(
-                          '/admin?product_added=1#products',
+                          '/admin?product_updated=1#products',
                         )
                       }}
                       style={{
@@ -858,6 +1178,85 @@ export default async function AdminPage({
                       />
 
                       <div
+                        style={{
+                          display: 'flex',
+                          alignItems:
+                            'center',
+                          gap: 16,
+                          marginBottom: 20,
+                          flexWrap:
+                            'wrap',
+                        }}
+                      >
+                        {product.image_url ? (
+                          <img
+                            src={
+                              product.image_url
+                            }
+                            alt={
+                              product.name
+                            }
+                            style={{
+                              width: 84,
+                              height: 84,
+                              objectFit:
+                                'cover',
+                              borderRadius: 18,
+                              border:
+                                '1px solid rgba(31,35,42,0.08)',
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 84,
+                              height: 84,
+                              borderRadius: 18,
+                              background:
+                                'rgba(255,255,255,0.7)',
+                              border:
+                                '1px solid rgba(31,35,42,0.08)',
+                              display:
+                                'grid',
+                              placeItems:
+                                'center',
+                              color:
+                                'var(--muted)',
+                              fontSize: 12,
+                              textAlign:
+                                'center',
+                              padding: 10,
+                            }}
+                          >
+                            No photo
+                          </div>
+                        )}
+
+                        <div>
+                          <strong
+                            style={{
+                              display:
+                                'block',
+                              fontSize:
+                                18,
+                              marginBottom:
+                                4,
+                            }}
+                          >
+                            {
+                              product.name
+                            }
+                          </strong>
+
+                          <span className="muted">
+                            {
+                              product.category
+                            }
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
                         className="checkout-grid"
                         style={{
                           gap: 14,
@@ -865,7 +1264,9 @@ export default async function AdminPage({
                       >
 
                         <label
-                          style={adminLabelStyle}
+                          style={
+                            adminLabelStyle
+                          }
                         >
                           <span className="muted">
                             Product name
@@ -885,7 +1286,9 @@ export default async function AdminPage({
                         </label>
 
                         <label
-                          style={adminLabelStyle}
+                          style={
+                            adminLabelStyle
+                          }
                         >
                           <span className="muted">
                             Category
@@ -905,7 +1308,9 @@ export default async function AdminPage({
                         </label>
 
                         <label
-                          style={adminLabelStyle}
+                          style={
+                            adminLabelStyle
+                          }
                         >
                           <span className="muted">
                             Price
@@ -927,7 +1332,9 @@ export default async function AdminPage({
                         </label>
 
                         <label
-                          style={adminLabelStyle}
+                          style={
+                            adminLabelStyle
+                          }
                         >
                           <span className="muted">
                             Stock quantity
@@ -976,7 +1383,37 @@ export default async function AdminPage({
 
                         <label
                           style={{
-                            display: 'flex',
+                            ...adminLabelStyle,
+                            gridColumn:
+                              '1 / -1',
+                          }}
+                        >
+                          <span className="muted">
+                            Replace photo
+                          </span>
+
+                          <input
+                            name="image"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            style={{
+                              ...adminInputStyle,
+                              padding:
+                                '9px 12px',
+                            }}
+                          />
+
+                          <small className="muted">
+                            Leave empty to
+                            keep the current
+                            photo.
+                          </small>
+                        </label>
+
+                        <label
+                          style={{
+                            display:
+                              'flex',
                             alignItems:
                               'center',
                             gap: 10,
@@ -991,7 +1428,8 @@ export default async function AdminPage({
                           />
 
                           <span>
-                            Available for customers
+                            Available for
+                            customers
                           </span>
                         </label>
 
@@ -1023,8 +1461,9 @@ export default async function AdminPage({
               </div>
             ) : (
               <p className="muted">
-                No products have been added yet.
-                Add your first product above.
+                No products have been
+                added yet. Add your first
+                product above.
               </p>
             )}
           </div>
@@ -1136,25 +1575,24 @@ export default async function AdminPage({
                             )
                           }
 
-                          const { error } =
-                            await supabase
-                              .from(
-                                'products',
-                              )
-                              .update({
-                                stock_quantity,
-                                is_available:
-                                  stock_quantity ===
-                                    null ||
-                                  stock_quantity >
-                                    0,
-                                updated_at:
-                                  new Date().toISOString(),
-                              })
-                              .eq(
-                                'id',
-                                id,
-                              )
+                          const {
+                            error,
+                          } = await supabase
+                            .from('products')
+                            .update({
+                              stock_quantity,
+                              is_available:
+                                stock_quantity ===
+                                  null ||
+                                stock_quantity >
+                                  0,
+                              updated_at:
+                                new Date().toISOString(),
+                            })
+                            .eq(
+                              'id',
+                              id,
+                            )
 
                           if (error) {
                             redirect(
@@ -1167,19 +1605,20 @@ export default async function AdminPage({
                           revalidatePath(
                             '/admin',
                           )
+
                           revalidatePath(
                             '/products',
                           )
-                          revalidatePath(
-                            '/',
-                          )
+
+                          revalidatePath('/')
 
                           redirect(
                             '/admin#inventory',
                           )
                         }}
                         style={{
-                          display: 'flex',
+                          display:
+                            'flex',
                           alignItems:
                             'center',
                           justifyContent:
@@ -1271,7 +1710,8 @@ export default async function AdminPage({
               </div>
             ) : (
               <p className="muted">
-                No products have been added yet.
+                No products have been
+                added yet.
               </p>
             )}
           </div>
@@ -1291,8 +1731,9 @@ export default async function AdminPage({
             </h2>
 
             <p className="muted">
-              Customer accounts and order history
-              will be connected here next.
+              Customer accounts and order
+              history will be connected
+              here next.
             </p>
           </div>
 
