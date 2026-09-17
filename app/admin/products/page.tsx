@@ -5,11 +5,9 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
 async function requireAdmin() {
   const supabase = await createClient()
 
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims()
+ const { data } = await supabase.auth.getClaims()
 
-  const userId = claims?.sub as string | undefined
+const userId = data?.claims?.sub as string | undefined
 
   if (!userId) {
     return null
