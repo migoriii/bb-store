@@ -949,167 +949,396 @@ export default async function AdminPage({
               </div>
             </form>
 
-            {/* EXISTING PRODUCTS */}
-            <h3>
-              Existing products
-            </h3>
+           {/* EXISTING PRODUCTS / INVENTORY */}
+<div
+  id="inventory"
+  className="page-card"
+  style={{ marginTop: 24 }}
+>
+  <span className="kicker">
+    Inventory
+  </span>
 
-            {products.length > 0 ? (
-              <div className="cart-list">
-                {products.map(
-                  (product) => (
-                    <form
-                      key={product.id}
-                      className="admin-product-form"
-                      encType="multipart/form-data"
-                      action={async (
-                        formData,
-                      ) => {
-                        'use server'
+  <h2 style={{ marginTop: 10 }}>
+    Stock overview.
+  </h2>
 
-                        const supabase =
-                          await getAdminClient()
+  <p className="muted">
+    Quickly update stock or open a product to edit its full details.
+  </p>
 
-                        if (!supabase) {
-                          redirect(
-                            '/admin?product_error=Unauthorized#products',
-                          )
-                        }
+  {products.length > 0 ? (
+    <div className="cart-list">
+      {products.map((product) => {
+        const stock =
+          product.stock_quantity === null
+            ? null
+            : Number(product.stock_quantity)
 
-                        const id =
-                          String(
-                            formData.get(
-                              'id',
-                            ),
-                          )
+        const stockLabel =
+          stock === null
+            ? 'No limit'
+            : stock <= 0
+              ? 'Out of stock'
+              : stock <= 5
+                ? 'Low stock'
+                : 'In stock'
 
-                        const name =
-                          String(
-                            formData.get(
-                              'name',
-                            ) || '',
-                          ).trim()
+        const stockClass =
+          stock !== null && stock <= 0
+            ? 'status'
+            : 'status in-stock'
 
-                        const category =
-                          String(
-                            formData.get(
-                              'category',
-                            ) || '',
-                          ).trim()
+        return (
+          <div
+            key={product.id}
+            style={{
+              border:
+                '1px solid rgba(31,35,42,0.06)',
+              borderRadius: 20,
+              padding: 16,
+              background:
+                'rgba(255,255,255,0.38)',
+            }}
+          >
+            {/* PRODUCT ROW */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 18,
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* PRODUCT INFO */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  minWidth: 220,
+                  flex: 1,
+                }}
+              >
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    style={{
+                      width: 64,
+                      height: 64,
+                      objectFit: 'cover',
+                      borderRadius: 16,
+                      border:
+                        '1px solid rgba(31,35,42,0.08)',
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 16,
+                      background:
+                        'rgba(255,255,255,0.7)',
+                      border:
+                        '1px solid rgba(31,35,42,0.08)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'var(--muted)',
+                      fontSize: 11,
+                      textAlign: 'center',
+                      padding: 8,
+                      flexShrink: 0,
+                    }}
+                  >
+                    No photo
+                  </div>
+                )}
 
-                        const price =
-                          Number(
-                            formData.get(
-                              'price',
-                            ),
-                          )
+                <div>
+                  <strong
+                    style={{
+                      display: 'block',
+                      fontSize: 17,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {product.name}
+                  </strong>
 
-                        const stockValue =
-                          String(
-                            formData.get(
-                              'stock_quantity',
-                            ) || '',
-                          ).trim()
+                  <span className="muted">
+                    {product.category}
+                  </span>
+                </div>
+              </div>
 
-                        const stock_quantity =
-                          stockValue ===
-                          ''
-                            ? null
-                            : Math.max(
-                                0,
-                                Number(
-                                  stockValue,
-                                ),
-                              )
+              {/* STOCK */}
+              <form
+                action={async (formData) => {
+                  'use server'
 
-                        const description =
-                          String(
-                            formData.get(
-                              'description',
-                            ) || '',
-                          ).trim() ||
-                          null
+                  const supabase =
+                    await getAdminClient()
 
-                        const is_available =
+                  if (!supabase) {
+                    redirect(
+                      '/admin?product_error=Unauthorized#inventory',
+                    )
+                  }
+
+                  const id = String(
+                    formData.get('id'),
+                  )
+
+                  const stockValue = String(
+                    formData.get('stock_quantity') || '',
+                  ).trim()
+
+                  const stock_quantity =
+                    stockValue === ''
+                      ? null
+                      : Math.max(
+                          0,
+                          Number(stockValue),
+                        )
+
+                  if (
+                    stock_quantity !== null &&
+                    (!Number.isFinite(
+                      stock_quantity,
+                    ) ||
+                      !Number.isInteger(
+                        stock_quantity,
+                      ))
+                  ) {
+                    redirect(
+                      `/admin?product_error=${encodeURIComponent(
+                        'Stock quantity must be a whole number.',
+                      )}#inventory`,
+                    )
+                  }
+
+                  const { error } =
+                    await supabase
+                      .from('products')
+                      .update({
+                        stock_quantity,
+                        is_available:
+                          stock_quantity === null ||
+                          stock_quantity > 0,
+                        updated_at:
+                          new Date().toISOString(),
+                      })
+                      .eq('id', id)
+
+                  if (error) {
+                    redirect(
+                      `/admin?product_error=${encodeURIComponent(
+                        error.message,
+                      )}#inventory`,
+                    )
+                  }
+
+                  revalidatePath('/admin')
+                  revalidatePath('/products')
+                  revalidatePath('/')
+
+                  redirect('/admin#inventory')
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <input
+                  type="hidden"
+                  name="id"
+                  value={product.id}
+                />
+
+                <input
+                  name="stock_quantity"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={stock ?? ''}
+                  placeholder="0"
+                  aria-label={`Stock quantity for ${product.name}`}
+                  style={{
+                    ...adminInputStyle,
+                    width: 90,
+                    textAlign: 'center',
+                  }}
+                />
+
+                <span className={stockClass}>
+                  {stockLabel}
+                </span>
+
+                <button
+                  className="bubble-button primary"
+                  type="submit"
+                >
+                  Save Stock
+                </button>
+              </form>
+
+              {/* EDIT */}
+              <details
+                style={{
+                  position: 'relative',
+                  flexShrink: 0,
+                }}
+              >
+                <summary
+                  className="bubble-button"
+                  style={{
+                    cursor: 'pointer',
+                    listStyle: 'none',
+                  }}
+                >
+                  Edit
+                </summary>
+
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: 20,
+                    border:
+                      '1px solid rgba(31,35,42,0.06)',
+                    borderRadius: 24,
+                    background:
+                      'rgba(255,255,255,0.55)',
+                  }}
+                >
+                  <form
+                    className="admin-product-form"
+                    encType="multipart/form-data"
+                    action={async (formData) => {
+                      'use server'
+
+                      const supabase =
+                        await getAdminClient()
+
+                      if (!supabase) {
+                        redirect(
+                          '/admin?product_error=Unauthorized#inventory',
+                        )
+                      }
+
+                      const id = String(
+                        formData.get('id'),
+                      )
+
+                      const name = String(
+                        formData.get('name') || '',
+                      ).trim()
+
+                      const category = String(
+                        formData.get('category') || '',
+                      ).trim()
+
+                      const price = Number(
+                        formData.get('price'),
+                      )
+
+                      const stockValue = String(
+                        formData.get(
+                          'stock_quantity',
+                        ) || '',
+                      ).trim()
+
+                      const stock_quantity =
+                        stockValue === ''
+                          ? null
+                          : Math.max(
+                              0,
+                              Number(stockValue),
+                            )
+
+                      const description =
+                        String(
                           formData.get(
-                            'is_available',
-                          ) === 'on'
+                            'description',
+                          ) || '',
+                        ).trim() || null
 
-                        if (
-                          !name ||
-                          !category ||
-                          !Number.isFinite(
-                            price,
-                          )
-                        ) {
-                          redirect(
-                            `/admin?product_error=${encodeURIComponent(
-                              'Please enter valid product details.',
-                            )}#products`,
-                          )
-                        }
+                      const is_available =
+                        formData.get(
+                          'is_available',
+                        ) === 'on'
 
-                        if (
-                          stock_quantity !==
-                            null &&
-                          (!Number.isFinite(
+                      if (
+                        !name ||
+                        !category ||
+                        !Number.isFinite(price)
+                      ) {
+                        redirect(
+                          `/admin?product_error=${encodeURIComponent(
+                            'Please enter valid product details.',
+                          )}#inventory`,
+                        )
+                      }
+
+                      if (
+                        stock_quantity !== null &&
+                        (!Number.isFinite(
+                          stock_quantity,
+                        ) ||
+                          !Number.isInteger(
                             stock_quantity,
-                          ) ||
-                            !Number.isInteger(
-                              stock_quantity,
-                            ))
+                          ))
+                      ) {
+                        redirect(
+                          `/admin?product_error=${encodeURIComponent(
+                            'Stock quantity must be a whole number.',
+                          )}#inventory`,
+                        )
+                      }
+
+                      const imageFile =
+                        formData.get('image')
+
+                      let imageUrl =
+                        product.image_url
+
+                      let uploadedImagePath:
+                        | string
+                        | null = null
+
+                      if (
+                        imageFile instanceof File &&
+                        imageFile.size > 0
+                      ) {
+                        const imageResult =
+                          await uploadProductImage(
+                            supabase,
+                            imageFile,
+                          )
+
+                        if (
+                          imageResult.error
                         ) {
                           redirect(
                             `/admin?product_error=${encodeURIComponent(
-                              'Stock quantity must be a whole number.',
-                            )}#products`,
+                              imageResult.error,
+                            )}#inventory`,
                           )
                         }
 
-                        const imageFile =
-                          formData.get(
-                            'image',
-                          )
+                        imageUrl =
+                          imageResult.imageUrl
 
-                        let imageUrl =
-                          product.image_url
+                        uploadedImagePath =
+                          imageResult.imagePath
+                      }
 
-                        let uploadedImagePath:
-                          | string
-                          | null =
-                          null
-
-                        if (
-                          imageFile instanceof
-                            File &&
-                          imageFile.size > 0
-                        ) {
-                          const imageResult =
-                            await uploadProductImage(
-                              supabase,
-                              imageFile,
-                            )
-
-                          if (
-                            imageResult.error
-                          ) {
-                            redirect(
-                              `/admin?product_error=${encodeURIComponent(
-                                imageResult.error,
-                              )}#products`,
-                            )
-                          }
-
-                          imageUrl =
-                            imageResult.imageUrl
-
-                          uploadedImagePath =
-                            imageResult.imagePath
-                        }
-
-                        const {
-                          error,
-                        } = await supabase
+                      const { error } =
+                        await supabase
                           .from('products')
                           .update({
                             name,
@@ -1123,598 +1352,235 @@ export default async function AdminPage({
                             updated_at:
                               new Date().toISOString(),
                           })
-                          .eq(
-                            'id',
-                            id,
-                          )
+                          .eq('id', id)
 
-                        if (error) {
-                          if (
-                            uploadedImagePath
-                          ) {
-                            await supabase.storage
-                              .from(
-                                'product-images',
-                              )
-                              .remove([
-                                uploadedImagePath,
-                              ])
-                          }
-
-                          redirect(
-                            `/admin?product_error=${encodeURIComponent(
-                              error.message,
-                            )}#products`,
-                          )
+                      if (error) {
+                        if (
+                          uploadedImagePath
+                        ) {
+                          await supabase.storage
+                            .from(
+                              'product-images',
+                            )
+                            .remove([
+                              uploadedImagePath,
+                            ])
                         }
 
-                        revalidatePath(
-                          '/admin',
-                        )
-
-                        revalidatePath(
-                          '/products',
-                        )
-
-                        revalidatePath('/')
-
                         redirect(
-                          '/admin?product_updated=1#products',
+                          `/admin?product_error=${encodeURIComponent(
+                            error.message,
+                          )}#inventory`,
                         )
-                      }}
-                      style={{
-                        border:
-                          '1px solid rgba(31,35,42,0.06)',
-                        borderRadius: 24,
-                        padding: 20,
-                        background:
-                          'rgba(255,255,255,0.38)',
-                      }}
-                    >
-                      <input
-                        type="hidden"
-                        name="id"
-                        value={product.id}
-                      />
+                      }
 
-                      <div
+                      revalidatePath('/admin')
+                      revalidatePath('/products')
+                      revalidatePath('/')
+
+                      redirect(
+                        '/admin?product_updated=1#inventory',
+                      )
+                    }}
+                  >
+                    <input
+                      type="hidden"
+                      name="id"
+                      value={product.id}
+                    />
+
+                    <div
+                      className="checkout-grid"
+                      style={{ gap: 14 }}
+                    >
+                      <label
+                        style={adminLabelStyle}
+                      >
+                        <span className="muted">
+                          Product name
+                        </span>
+
+                        <input
+                          name="name"
+                          type="text"
+                          defaultValue={
+                            product.name
+                          }
+                          required
+                          style={adminInputStyle}
+                        />
+                      </label>
+
+                      <label
+                        style={adminLabelStyle}
+                      >
+                        <span className="muted">
+                          Category
+                        </span>
+
+                        <input
+                          name="category"
+                          type="text"
+                          defaultValue={
+                            product.category
+                          }
+                          required
+                          style={adminInputStyle}
+                        />
+                      </label>
+
+                      <label
+                        style={adminLabelStyle}
+                      >
+                        <span className="muted">
+                          Price
+                        </span>
+
+                        <input
+                          name="price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          defaultValue={
+                            product.price
+                          }
+                          required
+                          style={adminInputStyle}
+                        />
+                      </label>
+
+                      <label
+                        style={adminLabelStyle}
+                      >
+                        <span className="muted">
+                          Stock quantity
+                        </span>
+
+                        <input
+                          name="stock_quantity"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={
+                            product.stock_quantity ??
+                            ''
+                          }
+                          style={adminInputStyle}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          ...adminLabelStyle,
+                          gridColumn: '1 / -1',
+                        }}
+                      >
+                        <span className="muted">
+                          Description
+                        </span>
+
+                        <textarea
+                          name="description"
+                          rows={3}
+                          defaultValue={
+                            product.description ??
+                            ''
+                          }
+                          style={{
+                            ...adminInputStyle,
+                            resize: 'vertical',
+                          }}
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          ...adminLabelStyle,
+                          gridColumn: '1 / -1',
+                        }}
+                      >
+                        <span className="muted">
+                          Replace photo
+                        </span>
+
+                        <input
+                          name="image"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          style={{
+                            ...adminInputStyle,
+                            padding: '9px 12px',
+                          }}
+                        />
+
+                        <small className="muted">
+                          Leave empty to keep
+                          the current photo.
+                        </small>
+                      </label>
+
+                      <label
                         style={{
                           display: 'flex',
                           alignItems:
                             'center',
-                          gap: 16,
-                          marginBottom: 20,
-                          flexWrap:
-                            'wrap',
-                        }}
-                      >
-                        {product.image_url ? (
-                          <img
-                            src={
-                              product.image_url
-                            }
-                            alt={
-                              product.name
-                            }
-                            style={{
-                              width: 84,
-                              height: 84,
-                              objectFit:
-                                'cover',
-                              borderRadius: 18,
-                              border:
-                                '1px solid rgba(31,35,42,0.08)',
-                            }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: 84,
-                              height: 84,
-                              borderRadius: 18,
-                              background:
-                                'rgba(255,255,255,0.7)',
-                              border:
-                                '1px solid rgba(31,35,42,0.08)',
-                              display:
-                                'grid',
-                              placeItems:
-                                'center',
-                              color:
-                                'var(--muted)',
-                              fontSize: 12,
-                              textAlign:
-                                'center',
-                              padding: 10,
-                            }}
-                          >
-                            No photo
-                          </div>
-                        )}
-
-                        <div>
-                          <strong
-                            style={{
-                              display:
-                                'block',
-                              fontSize:
-                                18,
-                              marginBottom:
-                                4,
-                            }}
-                          >
-                            {
-                              product.name
-                            }
-                          </strong>
-
-                          <span className="muted">
-                            {
-                              product.category
-                            }
-                          </span>
-                        </div>
-                      </div>
-
-                      <div
-                        className="checkout-grid"
-                        style={{
-                          gap: 14,
-                        }}
-                      >
-
-                        <label
-                          style={
-                            adminLabelStyle
-                          }
-                        >
-                          <span className="muted">
-                            Product name
-                          </span>
-
-                          <input
-                            name="name"
-                            type="text"
-                            defaultValue={
-                              product.name
-                            }
-                            required
-                            style={
-                              adminInputStyle
-                            }
-                          />
-                        </label>
-
-                        <label
-                          style={
-                            adminLabelStyle
-                          }
-                        >
-                          <span className="muted">
-                            Category
-                          </span>
-
-                          <input
-                            name="category"
-                            type="text"
-                            defaultValue={
-                              product.category
-                            }
-                            required
-                            style={
-                              adminInputStyle
-                            }
-                          />
-                        </label>
-
-                        <label
-                          style={
-                            adminLabelStyle
-                          }
-                        >
-                          <span className="muted">
-                            Price
-                          </span>
-
-                          <input
-                            name="price"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            defaultValue={
-                              product.price
-                            }
-                            required
-                            style={
-                              adminInputStyle
-                            }
-                          />
-                        </label>
-
-                        <label
-                          style={
-                            adminLabelStyle
-                          }
-                        >
-                          <span className="muted">
-                            Stock quantity
-                          </span>
-
-                          <input
-                            name="stock_quantity"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={
-                              product.stock_quantity ??
-                              ''
-                            }
-                            style={
-                              adminInputStyle
-                            }
-                          />
-                        </label>
-
-                        <label
-                          style={{
-                            ...adminLabelStyle,
-                            gridColumn:
-                              '1 / -1',
-                          }}
-                        >
-                          <span className="muted">
-                            Description
-                          </span>
-
-                          <textarea
-                            name="description"
-                            rows={3}
-                            defaultValue={
-                              product.description ??
-                              ''
-                            }
-                            style={{
-                              ...adminInputStyle,
-                              resize:
-                                'vertical',
-                            }}
-                          />
-                        </label>
-
-                        <label
-                          style={{
-                            ...adminLabelStyle,
-                            gridColumn:
-                              '1 / -1',
-                          }}
-                        >
-                          <span className="muted">
-                            Replace photo
-                          </span>
-
-                          <input
-                            name="image"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
-                            style={{
-                              ...adminInputStyle,
-                              padding:
-                                '9px 12px',
-                            }}
-                          />
-
-                          <small className="muted">
-                            Leave empty to
-                            keep the current
-                            photo.
-                          </small>
-                        </label>
-
-                        <label
-                          style={{
-                            display:
-                              'flex',
-                            alignItems:
-                              'center',
-                            gap: 10,
-                          }}
-                        >
-                          <input
-                            name="is_available"
-                            type="checkbox"
-                            defaultChecked={
-                              product.is_available
-                            }
-                          />
-
-                          <span>
-                            Available for
-                            customers
-                          </span>
-                        </label>
-
-                      </div>
-
-                      <div className="checkout-actions">
-                        <button
-                          className="bubble-button primary"
-                          type="submit"
-                        >
-                          Save Changes
-                        </button>
-
-                        <span
-                          className={
-                            product.is_available
-                              ? 'status in-stock'
-                              : 'status'
-                          }
-                        >
-                          {product.is_available
-                            ? 'Available'
-                            : 'Unavailable'}
-                        </span>
-                      </div>
-                    </form>
-                  ),
-                )}
-              </div>
-            ) : (
-              <p className="muted">
-                No products have been
-                added yet. Add your first
-                product above.
-              </p>
-            )}
-          </div>
-
-          {/* INVENTORY */}
-          <div
-            id="inventory"
-            className="page-card"
-            style={{ marginTop: 24 }}
-          >
-            <span className="kicker">
-              Inventory
-            </span>
-
-            <h2 style={{ marginTop: 10 }}>
-              Stock overview.
-            </h2>
-
-            <p className="muted">
-              Quickly update the stock
-              customers can order.
-            </p>
-
-            {products.length > 0 ? (
-              <div className="cart-list">
-                {products.map(
-                  (product) => {
-                    const stock =
-                      product.stock_quantity ===
-                      null
-                        ? null
-                        : Number(
-                            product.stock_quantity,
-                          )
-
-                    const stockLabel =
-                      stock === null
-                        ? 'No limit'
-                        : stock <= 0
-                          ? 'Out of stock'
-                          : stock <= 5
-                            ? 'Low stock'
-                            : 'In stock'
-
-                    const stockClass =
-                      stock !== null &&
-                      stock <= 0
-                        ? 'status'
-                        : 'status in-stock'
-
-                    return (
-                      <form
-                        key={
-                          product.id
-                        }
-                        action={async (
-                          formData,
-                        ) => {
-                          'use server'
-
-                          const supabase =
-                            await getAdminClient()
-
-                          if (!supabase) {
-                            redirect(
-                              '/admin?product_error=Unauthorized#inventory',
-                            )
-                          }
-
-                          const id =
-                            String(
-                              formData.get(
-                                'id',
-                              ),
-                            )
-
-                          const stockValue =
-                            String(
-                              formData.get(
-                                'stock_quantity',
-                              ) || '',
-                            ).trim()
-
-                          const stock_quantity =
-                            stockValue ===
-                            ''
-                              ? null
-                              : Math.max(
-                                  0,
-                                  Number(
-                                    stockValue,
-                                  ),
-                                )
-
-                          if (
-                            stock_quantity !==
-                              null &&
-                            (!Number.isFinite(
-                              stock_quantity,
-                            ) ||
-                              !Number.isInteger(
-                                stock_quantity,
-                              ))
-                          ) {
-                            redirect(
-                              `/admin?product_error=${encodeURIComponent(
-                                'Stock quantity must be a whole number.',
-                              )}#inventory`,
-                            )
-                          }
-
-                          const {
-                            error,
-                          } = await supabase
-                            .from('products')
-                            .update({
-                              stock_quantity,
-                              is_available:
-                                stock_quantity ===
-                                  null ||
-                                stock_quantity >
-                                  0,
-                              updated_at:
-                                new Date().toISOString(),
-                            })
-                            .eq(
-                              'id',
-                              id,
-                            )
-
-                          if (error) {
-                            redirect(
-                              `/admin?product_error=${encodeURIComponent(
-                                error.message,
-                              )}#inventory`,
-                            )
-                          }
-
-                          revalidatePath(
-                            '/admin',
-                          )
-
-                          revalidatePath(
-                            '/products',
-                          )
-
-                          revalidatePath('/')
-
-                          redirect(
-                            '/admin#inventory',
-                          )
-                        }}
-                        style={{
-                          display:
-                            'flex',
-                          alignItems:
-                            'center',
-                          justifyContent:
-                            'space-between',
-                          gap: 18,
-                          flexWrap:
-                            'wrap',
-                          border:
-                            '1px solid rgba(31,35,42,0.06)',
-                          borderRadius: 20,
-                          padding: 16,
-                          background:
-                            'rgba(255,255,255,0.38)',
+                          gap: 10,
                         }}
                       >
                         <input
-                          type="hidden"
-                          name="id"
-                          value={
-                            product.id
+                          name="is_available"
+                          type="checkbox"
+                          defaultChecked={
+                            product.is_available
                           }
                         />
 
-                        <div
-                          style={{
-                            minWidth: 180,
-                          }}
-                        >
-                          <strong>
-                            {product.name}
-                          </strong>
+                        <span>
+                          Available for
+                          customers
+                        </span>
+                      </label>
+                    </div>
 
-                          <div className="muted">
-                            {
-                              product.category
-                            }
-                          </div>
-                        </div>
+                    <div
+                      className="checkout-actions"
+                      style={{
+                        marginTop: 16,
+                      }}
+                    >
+                      <button
+                        className="bubble-button primary"
+                        type="submit"
+                      >
+                        Save Changes
+                      </button>
 
-                        <div
-                          style={{
-                            display:
-                              'flex',
-                            alignItems:
-                              'center',
-                            gap: 10,
-                          }}
-                        >
-                          <input
-                            name="stock_quantity"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={
-                              stock ??
-                              ''
-                            }
-                            placeholder="0"
-                            aria-label={`Stock quantity for ${product.name}`}
-                            style={{
-                              ...adminInputStyle,
-                              width: 100,
-                              textAlign:
-                                'center',
-                            }}
-                          />
-
-                          <span
-                            className={
-                              stockClass
-                            }
-                          >
-                            {
-                              stockLabel
-                            }
-                          </span>
-                        </div>
-
-                        <button
-                          className="bubble-button primary"
-                          type="submit"
-                        >
-                          Save Stock
-                        </button>
-                      </form>
-                    )
-                  },
-                )}
-              </div>
-            ) : (
-              <p className="muted">
-                No products have been
-                added yet.
-              </p>
-            )}
+                      <span
+                        className={
+                          product.is_available
+                            ? 'status in-stock'
+                            : 'status'
+                        }
+                      >
+                        {product.is_available
+                          ? 'Available'
+                          : 'Unavailable'}
+                      </span>
+                    </div>
+                  </form>
+                </div>
+              </details>
+            </div>
           </div>
+        )
+      })}
+    </div>
+  ) : (
+    <p className="muted">
+      No products have been added yet.
+    </p>
+  )}
+</div>
 
           {/* CUSTOMERS */}
           <div
