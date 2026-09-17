@@ -488,11 +488,148 @@ export default async function AdminPage() {
             )}
           </div>
 
-          <div
-            id="inventory"
-            className="page-card"
-            style={{ marginTop: 24 }}
+         <div
+  id="inventory"
+  className="page-card"
+  style={{ marginTop: 24 }}
+>
+  <span className="kicker">Inventory</span>
+
+  <h2 style={{ marginTop: 10 }}>
+    Stock overview.
+  </h2>
+
+  <p className="muted">
+    Quickly update the stock customers can order.
+  </p>
+
+  {products.length > 0 ? (
+    <div className="cart-list">
+      {products.map((product) => {
+        const stock =
+          product.stock_quantity === null
+            ? null
+            : Number(product.stock_quantity)
+
+        const stockLabel =
+          stock === null
+            ? 'No limit'
+            : stock <= 0
+              ? 'Out of stock'
+              : stock <= 5
+                ? 'Low stock'
+                : 'In stock'
+
+        const stockClass =
+          stock !== null && stock <= 0
+            ? 'status'
+            : 'status in-stock'
+
+        return (
+          <form
+            key={product.id}
+            action={async (formData) => {
+              'use server'
+
+              const supabase = await getAdminClient()
+
+              if (!supabase) {
+                throw new Error('Unauthorized')
+              }
+
+              const id = String(formData.get('id'))
+
+              const stockValue = String(
+                formData.get('stock_quantity') || '',
+              ).trim()
+
+              const stock_quantity =
+                stockValue === ''
+                  ? null
+                  : Math.max(0, Number(stockValue))
+
+              await supabase
+                .from('products')
+                .update({
+                  stock_quantity,
+                  is_available:
+                    stock_quantity === null ||
+                    stock_quantity > 0,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', id)
+
+              revalidatePath('/admin')
+              revalidatePath('/products')
+              revalidatePath('/')
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 18,
+              flexWrap: 'wrap',
+              border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 24,
+              padding: 18,
+            }}
           >
+            <input
+              type="hidden"
+              name="id"
+              value={product.id}
+            />
+
+            <div style={{ minWidth: 180 }}>
+              <strong>{product.name}</strong>
+
+              <div className="muted">
+                {product.category}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <input
+                name="stock_quantity"
+                type="number"
+                min="0"
+                step="1"
+                defaultValue={stock ?? ''}
+                placeholder="∞"
+                aria-label={`Stock quantity for ${product.name}`}
+                style={{
+                  width: 110,
+                  textAlign: 'center',
+                }}
+              />
+
+              <span className={stockClass}>
+                {stockLabel}
+              </span>
+            </div>
+
+            <button
+              className="bubble-button primary"
+              type="submit"
+            >
+              Save Stock
+            </button>
+          </form>
+        )
+      })}
+    </div>
+  ) : (
+    <p className="muted">
+      No products have been added yet.
+    </p>
+  )}
+</div>
             <span className="kicker">Inventory</span>
 
             <h2 style={{ marginTop: 10 }}>
