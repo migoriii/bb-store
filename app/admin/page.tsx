@@ -146,6 +146,7 @@ export default async function AdminPage() {
   return (
     <section className="section" style={{ marginTop: 0 }}>
       <div className="admin-layout">
+
         <aside className="page-card admin-sidebar">
           <span className="kicker">Store Admin</span>
 
@@ -164,6 +165,8 @@ export default async function AdminPage() {
         </aside>
 
         <div>
+
+          {/* DASHBOARD */}
           <div className="page-card">
             <span className="kicker">
               Admin {accessState === 'demo' ? 'prototype' : 'dashboard'}
@@ -206,6 +209,7 @@ export default async function AdminPage() {
             </div>
           </div>
 
+          {/* ORDERS */}
           <div
             id="orders"
             className="page-card"
@@ -247,567 +251,623 @@ export default async function AdminPage() {
             )}
           </div>
 
-       <div
-  id="products"
-  className="page-card"
-  style={{ marginTop: 24 }}
->
-  <span className="kicker">Products</span>
-
-  <h2 style={{ marginTop: 10 }}>
-    Manage your products.
-  </h2>
-
-  <p className="muted">
-    Add and manage the everyday products customers can order.
-  </p>
-
-  <form
-    action={async (formData) => {
-      'use server'
-
-      const supabase = await getAdminClient()
-
-      if (!supabase) {
-        throw new Error('Unauthorized')
-      }
-
-      const name = String(
-        formData.get('name') || '',
-      ).trim()
-
-      const category = String(
-        formData.get('category') || '',
-      ).trim()
-
-      const price = Number(
-        formData.get('price'),
-      )
-
-      const stockValue = String(
-        formData.get('stock_quantity') || '',
-      ).trim()
-
-      const stock_quantity =
-        stockValue === ''
-          ? null
-          : Math.max(0, Number(stockValue))
-
-      const description =
-        String(
-          formData.get('description') || '',
-        ).trim() || null
-
-      const is_available =
-        formData.get('is_available') === 'on'
-
-      if (!name || !category || !Number.isFinite(price)) {
-        throw new Error('Please provide valid product details.')
-      }
-
-      if (
-        stock_quantity !== null &&
-        !Number.isFinite(stock_quantity)
-      ) {
-        throw new Error('Invalid stock quantity.')
-      }
-
-      await supabase.from('products').insert({
-        name,
-        category,
-        price,
-        stock_quantity,
-        description,
-        is_available,
-      })
-
-      revalidatePath('/admin')
-      revalidatePath('/products')
-      revalidatePath('/')
-    }}
-    style={{
-      border: '1px solid rgba(0,0,0,0.08)',
-      borderRadius: 24,
-      padding: 20,
-      marginTop: 20,
-      marginBottom: 24,
-    }}
-  >
-    <h3 style={{ marginTop: 0 }}>
-      Add a product
-    </h3>
-
-    <div className="checkout-grid">
-      <label>
-        <span className="muted">
-          Product name
-        </span>
-
-        <input
-          name="name"
-          type="text"
-          placeholder="e.g. Eggs"
-          required
-        />
-      </label>
-
-      <label>
-        <span className="muted">
-          Category
-        </span>
-
-        <select
-          name="category"
-          defaultValue=""
-          required
-        >
-          <option value="" disabled>
-            Select a category
-          </option>
-          <option value="Rice">
-            Rice
-          </option>
-          <option value="Eggs">
-            Eggs
-          </option>
-          <option value="Frozen Goods">
-            Frozen Goods
-          </option>
-          <option value="Other">
-            Other
-          </option>
-        </select>
-      </label>
-
-      <label>
-        <span className="muted">
-          Price
-        </span>
-
-        <input
-          name="price"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          required
-        />
-      </label>
-
-      <label>
-        <span className="muted">
-          Stock quantity
-        </span>
-
-        <input
-          name="stock_quantity"
-          type="number"
-          min="0"
-          step="1"
-          placeholder="0"
-        />
-      </label>
-
-      <label
-        style={{
-          gridColumn: '1 / -1',
-        }}
-      >
-        <span className="muted">
-          Description
-        </span>
-
-        <textarea
-          name="description"
-          rows={3}
-          placeholder="Optional product description"
-        />
-      </label>
-
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <input
-          name="is_available"
-          type="checkbox"
-          defaultChecked
-        />
-
-        <span>
-          Available for customers
-        </span>
-      </label>
-    </div>
-
-    <div className="checkout-actions">
-      <button
-        className="bubble-button primary"
-        type="submit"
-      >
-        Add Product
-      </button>
-    </div>
-  </form>
-
-  <h3>
-    Existing products
-  </h3>
-
-  {products.length > 0 ? (
-    <div className="cart-list">
-      {products.map((product) => (
-        <form
-          key={product.id}
-          action={async (formData) => {
-            'use server'
-
-            const supabase = await getAdminClient()
-
-            if (!supabase) {
-              throw new Error('Unauthorized')
-            }
-
-            const id = String(
-              formData.get('id'),
-            )
-
-            const name = String(
-              formData.get('name') || '',
-            ).trim()
-
-            const category = String(
-              formData.get('category') || '',
-            ).trim()
-
-            const price = Number(
-              formData.get('price'),
-            )
-
-            const stockValue = String(
-              formData.get('stock_quantity') || '',
-            ).trim()
-
-            const stock_quantity =
-              stockValue === ''
-                ? null
-                : Math.max(0, Number(stockValue))
-
-            const description =
-              String(
-                formData.get('description') || '',
-              ).trim() || null
-
-            const is_available =
-              formData.get('is_available') === 'on'
-
-            await supabase
-              .from('products')
-              .update({
-                name,
-                category,
-                price,
-                stock_quantity,
-                description,
-                is_available,
-                updated_at:
-                  new Date().toISOString(),
-              })
-              .eq('id', id)
-
-            revalidatePath('/admin')
-            revalidatePath('/products')
-            revalidatePath('/')
-          }}
-          style={{
-            border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 24,
-            padding: 20,
-          }}
-        >
-          <input
-            type="hidden"
-            name="id"
-            value={product.id}
-          />
-
-          <div className="checkout-grid">
-            <label>
-              <span className="muted">
-                Product name
-              </span>
-
-              <input
-                name="name"
-                type="text"
-                defaultValue={product.name}
-                required
-              />
-            </label>
-
-            <label>
-              <span className="muted">
-                Category
-              </span>
-
-              <input
-                name="category"
-                type="text"
-                defaultValue={product.category}
-                required
-              />
-            </label>
-
-            <label>
-              <span className="muted">
-                Price
-              </span>
-
-              <input
-                name="price"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={product.price}
-                required
-              />
-            </label>
-
-            <label>
-              <span className="muted">
-                Stock quantity
-              </span>
-
-              <input
-                name="stock_quantity"
-                type="number"
-                min="0"
-                step="1"
-                defaultValue={
-                  product.stock_quantity ?? ''
-                }
-              />
-            </label>
-
-            <label
-              style={{
-                gridColumn: '1 / -1',
-              }}
-            >
-              <span className="muted">
-                Description
-              </span>
-
-              <textarea
-                name="description"
-                rows={3}
-                defaultValue={
-                  product.description ?? ''
-                }
-              />
-            </label>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              <input
-                name="is_available"
-                type="checkbox"
-                defaultChecked={
-                  product.is_available
-                }
-              />
-
-              <span>
-                Available for customers
-              </span>
-            </label>
-          </div>
-
-          <div className="checkout-actions">
-            <button
-              className="bubble-button primary"
-              type="submit"
-            >
-              Save Changes
-            </button>
-
-            <span
-              className={
-                product.is_available
-                  ? 'status in-stock'
-                  : 'status'
-              }
-            >
-              {product.is_available
-                ? 'Available'
-                : 'Unavailable'}
-            </span>
-          </div>
-        </form>
-      ))}
-    </div>
-  ) : (
-    <p className="muted">
-      No products have been added yet. Add your first product above.
-    </p>
-  )}
-</div>
-  id="inventory"
-  className="page-card"
-  style={{ marginTop: 24 }}
->
-  <span className="kicker">Inventory</span>
-
-  <h2 style={{ marginTop: 10 }}>
-    Stock overview.
-  </h2>
-
-  <p className="muted">
-    Quickly update the stock customers can order.
-  </p>
-
-  {products.length > 0 ? (
-    <div className="cart-list">
-      {products.map((product) => {
-        const stock =
-          product.stock_quantity === null
-            ? null
-            : Number(product.stock_quantity)
-
-        const stockLabel =
-          stock === null
-            ? 'No limit'
-            : stock <= 0
-              ? 'Out of stock'
-              : stock <= 5
-                ? 'Low stock'
-                : 'In stock'
-
-        const stockClass =
-          stock !== null && stock <= 0
-            ? 'status'
-            : 'status in-stock'
-
-        return (
-          <form
-            key={product.id}
-            action={async (formData) => {
-              'use server'
-
-              const supabase = await getAdminClient()
-
-              if (!supabase) {
-                throw new Error('Unauthorized')
-              }
-
-              const id = String(formData.get('id'))
-
-              const stockValue = String(
-                formData.get('stock_quantity') || '',
-              ).trim()
-
-              const stock_quantity =
-                stockValue === ''
-                  ? null
-                  : Math.max(0, Number(stockValue))
-
-              await supabase
-                .from('products')
-                .update({
-                  stock_quantity,
-                  is_available:
-                    stock_quantity === null ||
-                    stock_quantity > 0,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', id)
-
-              revalidatePath('/admin')
-              revalidatePath('/products')
-              revalidatePath('/')
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 18,
-              flexWrap: 'wrap',
-              border: '1px solid rgba(0,0,0,0.08)',
-              borderRadius: 24,
-              padding: 18,
-            }}
+          {/* PRODUCTS */}
+          <div
+            id="products"
+            className="page-card"
+            style={{ marginTop: 24 }}
           >
-            <input
-              type="hidden"
-              name="id"
-              value={product.id}
-            />
+            <span className="kicker">Products</span>
 
-            <div style={{ minWidth: 180 }}>
-              <strong>{product.name}</strong>
+            <h2 style={{ marginTop: 10 }}>
+              Manage your products.
+            </h2>
 
-              <div className="muted">
-                {product.category}
-              </div>
-            </div>
+            <p className="muted">
+              Add and manage the everyday products customers can order.
+            </p>
 
-            <div
+            {/* ADD PRODUCT */}
+            <form
+              action={async (formData) => {
+                'use server'
+
+                const supabase = await getAdminClient()
+
+                if (!supabase) {
+                  throw new Error('Unauthorized')
+                }
+
+                const name = String(
+                  formData.get('name') || '',
+                ).trim()
+
+                const category = String(
+                  formData.get('category') || '',
+                ).trim()
+
+                const price = Number(
+                  formData.get('price'),
+                )
+
+                const stockValue = String(
+                  formData.get('stock_quantity') || '',
+                ).trim()
+
+                const stock_quantity =
+                  stockValue === ''
+                    ? null
+                    : Math.max(0, Number(stockValue))
+
+                const description =
+                  String(
+                    formData.get('description') || '',
+                  ).trim() || null
+
+                const is_available =
+                  formData.get('is_available') === 'on'
+
+                if (
+                  !name ||
+                  !category ||
+                  !Number.isFinite(price)
+                ) {
+                  throw new Error(
+                    'Please provide valid product details.',
+                  )
+                }
+
+                if (
+                  stock_quantity !== null &&
+                  !Number.isFinite(stock_quantity)
+                ) {
+                  throw new Error(
+                    'Invalid stock quantity.',
+                  )
+                }
+
+                await supabase.from('products').insert({
+                  name,
+                  category,
+                  price,
+                  stock_quantity,
+                  description,
+                  is_available,
+                })
+
+                revalidatePath('/admin')
+                revalidatePath('/products')
+                revalidatePath('/')
+              }}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderRadius: 24,
+                padding: 20,
+                marginTop: 20,
+                marginBottom: 24,
               }}
             >
-              <input
-                name="stock_quantity"
-                type="number"
-                min="0"
-                step="1"
-                defaultValue={stock ?? ''}
-                placeholder="∞"
-                aria-label={`Stock quantity for ${product.name}`}
-                style={{
-                  width: 110,
-                  textAlign: 'center',
-                }}
-              />
+              <h3 style={{ marginTop: 0 }}>
+                Add a product
+              </h3>
 
-              <span className={stockClass}>
-                {stockLabel}
-              </span>
-            </div>
+              <div className="checkout-grid">
 
-            <button
-              className="bubble-button primary"
-              type="submit"
-            >
-              Save Stock
-            </button>
-          </form>
-        )
-      })}
-    </div>
-  ) : (
-    <p className="muted">
-      No products have been added yet.
-    </p>
-  )}
-</div>
+                <label>
+                  <span className="muted">
+                    Product name
+                  </span>
 
+                  <input
+                    name="name"
+                    type="text"
+                    placeholder="e.g. Eggs"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="muted">
+                    Category
+                  </span>
+
+                  <select
+                    name="category"
+                    defaultValue=""
+                    required
+                  >
+                    <option value="" disabled>
+                      Select a category
+                    </option>
+
+                    <option value="Rice">
+                      Rice
+                    </option>
+
+                    <option value="Eggs">
+                      Eggs
+                    </option>
+
+                    <option value="Frozen Goods">
+                      Frozen Goods
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  <span className="muted">
+                    Price
+                  </span>
+
+                  <input
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                </label>
+
+                <label>
+                  <span className="muted">
+                    Stock quantity
+                  </span>
+
+                  <input
+                    name="stock_quantity"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                  />
+                </label>
+
+                <label
+                  style={{
+                    gridColumn: '1 / -1',
+                  }}
+                >
+                  <span className="muted">
+                    Description
+                  </span>
+
+                  <textarea
+                    name="description"
+                    rows={3}
+                    placeholder="Optional product description"
+                  />
+                </label>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <input
+                    name="is_available"
+                    type="checkbox"
+                    defaultChecked
+                  />
+
+                  <span>
+                    Available for customers
+                  </span>
+                </label>
+
+              </div>
+
+              <div className="checkout-actions">
+                <button
+                  className="bubble-button primary"
+                  type="submit"
+                >
+                  Add Product
+                </button>
+              </div>
+            </form>
+
+            {/* EXISTING PRODUCTS */}
+            <h3>
+              Existing products
+            </h3>
+
+            {products.length > 0 ? (
+              <div className="cart-list">
+                {products.map((product) => (
+                  <form
+                    key={product.id}
+                    action={async (formData) => {
+                      'use server'
+
+                      const supabase = await getAdminClient()
+
+                      if (!supabase) {
+                        throw new Error('Unauthorized')
+                      }
+
+                      const id = String(
+                        formData.get('id'),
+                      )
+
+                      const name = String(
+                        formData.get('name') || '',
+                      ).trim()
+
+                      const category = String(
+                        formData.get('category') || '',
+                      ).trim()
+
+                      const price = Number(
+                        formData.get('price'),
+                      )
+
+                      const stockValue = String(
+                        formData.get('stock_quantity') || '',
+                      ).trim()
+
+                      const stock_quantity =
+                        stockValue === ''
+                          ? null
+                          : Math.max(
+                              0,
+                              Number(stockValue),
+                            )
+
+                      const description =
+                        String(
+                          formData.get('description') || '',
+                        ).trim() || null
+
+                      const is_available =
+                        formData.get('is_available') === 'on'
+
+                      await supabase
+                        .from('products')
+                        .update({
+                          name,
+                          category,
+                          price,
+                          stock_quantity,
+                          description,
+                          is_available,
+                          updated_at:
+                            new Date().toISOString(),
+                        })
+                        .eq('id', id)
+
+                      revalidatePath('/admin')
+                      revalidatePath('/products')
+                      revalidatePath('/')
+                    }}
+                    style={{
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      borderRadius: 24,
+                      padding: 20,
+                    }}
+                  >
+                    <input
+                      type="hidden"
+                      name="id"
+                      value={product.id}
+                    />
+
+                    <div className="checkout-grid">
+
+                      <label>
+                        <span className="muted">
+                          Product name
+                        </span>
+
+                        <input
+                          name="name"
+                          type="text"
+                          defaultValue={product.name}
+                          required
+                        />
+                      </label>
+
+                      <label>
+                        <span className="muted">
+                          Category
+                        </span>
+
+                        <input
+                          name="category"
+                          type="text"
+                          defaultValue={product.category}
+                          required
+                        />
+                      </label>
+
+                      <label>
+                        <span className="muted">
+                          Price
+                        </span>
+
+                        <input
+                          name="price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          defaultValue={product.price}
+                          required
+                        />
+                      </label>
+
+                      <label>
+                        <span className="muted">
+                          Stock quantity
+                        </span>
+
+                        <input
+                          name="stock_quantity"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={
+                            product.stock_quantity ?? ''
+                          }
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          gridColumn: '1 / -1',
+                        }}
+                      >
+                        <span className="muted">
+                          Description
+                        </span>
+
+                        <textarea
+                          name="description"
+                          rows={3}
+                          defaultValue={
+                            product.description ?? ''
+                          }
+                        />
+                      </label>
+
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <input
+                          name="is_available"
+                          type="checkbox"
+                          defaultChecked={
+                            product.is_available
+                          }
+                        />
+
+                        <span>
+                          Available for customers
+                        </span>
+                      </label>
+
+                    </div>
+
+                    <div className="checkout-actions">
+                      <button
+                        className="bubble-button primary"
+                        type="submit"
+                      >
+                        Save Changes
+                      </button>
+
+                      <span
+                        className={
+                          product.is_available
+                            ? 'status in-stock'
+                            : 'status'
+                        }
+                      >
+                        {product.is_available
+                          ? 'Available'
+                          : 'Unavailable'}
+                      </span>
+                    </div>
+                  </form>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">
+                No products have been added yet. Add your first
+                product above.
+              </p>
+            )}
+          </div>
+
+          {/* INVENTORY */}
+          <div
+            id="inventory"
+            className="page-card"
+            style={{ marginTop: 24 }}
+          >
+            <span className="kicker">Inventory</span>
+
+            <h2 style={{ marginTop: 10 }}>
+              Stock overview.
+            </h2>
+
+            <p className="muted">
+              Quickly update the stock customers can order.
+            </p>
+
+            {products.length > 0 ? (
+              <div className="cart-list">
+                {products.map((product) => {
+                  const stock =
+                    product.stock_quantity === null
+                      ? null
+                      : Number(
+                          product.stock_quantity,
+                        )
+
+                  const stockLabel =
+                    stock === null
+                      ? 'No limit'
+                      : stock <= 0
+                        ? 'Out of stock'
+                        : stock <= 5
+                          ? 'Low stock'
+                          : 'In stock'
+
+                  const stockClass =
+                    stock !== null && stock <= 0
+                      ? 'status'
+                      : 'status in-stock'
+
+                  return (
+                    <form
+                      key={product.id}
+                      action={async (formData) => {
+                        'use server'
+
+                        const supabase =
+                          await getAdminClient()
+
+                        if (!supabase) {
+                          throw new Error(
+                            'Unauthorized',
+                          )
+                        }
+
+                        const id = String(
+                          formData.get('id'),
+                        )
+
+                        const stockValue =
+                          String(
+                            formData.get(
+                              'stock_quantity',
+                            ) || '',
+                          ).trim()
+
+                        const stock_quantity =
+                          stockValue === ''
+                            ? null
+                            : Math.max(
+                                0,
+                                Number(stockValue),
+                              )
+
+                        await supabase
+                          .from('products')
+                          .update({
+                            stock_quantity,
+                            is_available:
+                              stock_quantity ===
+                                null ||
+                              stock_quantity > 0,
+                            updated_at:
+                              new Date().toISOString(),
+                          })
+                          .eq('id', id)
+
+                        revalidatePath('/admin')
+                        revalidatePath('/products')
+                        revalidatePath('/')
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent:
+                          'space-between',
+                        gap: 18,
+                        flexWrap: 'wrap',
+                        border:
+                          '1px solid rgba(0,0,0,0.08)',
+                        borderRadius: 24,
+                        padding: 18,
+                      }}
+                    >
+                      <input
+                        type="hidden"
+                        name="id"
+                        value={product.id}
+                      />
+
+                      <div
+                        style={{
+                          minWidth: 180,
+                        }}
+                      >
+                        <strong>
+                          {product.name}
+                        </strong>
+
+                        <div className="muted">
+                          {product.category}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}
+                      >
+                        <input
+                          name="stock_quantity"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={
+                            stock ?? ''
+                          }
+                          placeholder="∞"
+                          aria-label={`Stock quantity for ${product.name}`}
+                          style={{
+                            width: 110,
+                            textAlign: 'center',
+                          }}
+                        />
+
+                        <span
+                          className={stockClass}
+                        >
+                          {stockLabel}
+                        </span>
+                      </div>
+
+                      <button
+                        className="bubble-button primary"
+                        type="submit"
+                      >
+                        Save Stock
+                      </button>
+                    </form>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="muted">
+                No products have been added yet.
+              </p>
+            )}
+          </div>
+
+          {/* CUSTOMERS */}
           <div
             id="customers"
             className="page-card"
             style={{ marginTop: 24 }}
           >
-            <span className="kicker">Customers</span>
+            <span className="kicker">
+              Customers
+            </span>
 
             <h2 style={{ marginTop: 10 }}>
               Customer management.
@@ -818,6 +878,7 @@ export default async function AdminPage() {
               connected here next.
             </p>
           </div>
+
         </div>
       </div>
     </section>
