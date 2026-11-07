@@ -18,7 +18,7 @@ function once(file, from, to, label) {
     "  const preferred = ['All', 'Bigas', 'Itlog', 'Frozen Foods', 'Ulam', 'Grocery', 'Drinks'];",
     '  const actual = state.products.filter((p) => p.active && !p.inquiryOnly).map((p) => p.category);',
     '  const categories = [...new Set([...preferred, ...actual])];',
-    "  $('#categoryPills').innerHTML = categories.map((category) => '<button class=\"category-pill ' + (state.category === category ? 'active' : '') + '\" type=\"button\" data-category=\"' + esc(category) + '\">' + (category === 'All' ? 'Lahat' : esc(category)) + '</button>').join('');',
+    "  $('#categoryPills').innerHTML = categories.map((category) => '<button class=' + String.fromCharCode(34) + 'category-pill ' + (state.category === category ? 'active' : '') + String.fromCharCode(34) + ' type=' + String.fromCharCode(34) + 'button' + String.fromCharCode(34) + ' data-category=' + String.fromCharCode(34) + esc(category) + String.fromCharCode(34) + '>' + (category === 'All' ? 'Lahat' : esc(category)) + '</button>').join('');",
     '}'
   ].join('\n');
   write(file, source.replace(re, replacement));
