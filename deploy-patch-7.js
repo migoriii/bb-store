@@ -111,9 +111,7 @@ replaceOnce('public/admin.html',
 '<label class="field">Store hours<input name="storeHours" maxlength="240" /></label>',
 '<label class="field">Store hours<input name="storeHours" maxlength="240" /></label><div class="settings-backup-actions"><button type="button" class="admin-button" id="testOrderEmailButton">Send test email</button><a class="admin-button" href="/api/admin/database-backup">Download database backup</a><p class="muted-note">The store keeps up to seven daily compressed snapshots on its data volume. Download a copy regularly for protection outside Railway.</p><div id="emailTestMessage" class="muted-note" role="status" aria-live="polite"></div></div>',
 'add email test and backup controls');
-replaceOnce('public/admin.js',
-'checkAdmin();',
-[
+const adminEmailHandler = [
 "$('#testOrderEmailButton').addEventListener('click', async () => {",
 "  const button = $('#testOrderEmailButton');",
 "  const message = $('#emailTestMessage');",
@@ -129,10 +127,12 @@ replaceOnce('public/admin.js',
 "    button.disabled = false;",
 "    button.textContent = 'Send test email';",
 "  }",
-"});",
-"",
-"checkAdmin();"
-].join('\n'), 'admin email test button handler');
+"});"
+].join('\n');
+const currentAdminJs = read('public/admin.js');
+if (!currentAdminJs.includes("$('#testOrderEmailButton').addEventListener('click'")) {
+  write('public/admin.js', currentAdminJs + '\n' + adminEmailHandler + '\n');
+}
 write('public/styles.css', read('public/styles.css') + '\n.settings-backup-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}.settings-backup-actions p,.settings-backup-actions #emailTestMessage{flex-basis:100%;margin:2px 0;font-size:12px}\n');
 
 new Function(read('server.js'));
